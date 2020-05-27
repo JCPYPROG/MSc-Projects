@@ -60,7 +60,7 @@ def Run_blast(local=False, infile=None, outfile=None,
                                     out=outfile)
         cmd
         
-def xml2fasta(infile=None, outfile=None):
+def xml2fasta(infile=None, outfile=None,max_blast=None):
     
     print('\nConverting '+infile+' to fasta format, removing duplicates...')
 
@@ -86,22 +86,25 @@ def xml2fasta(infile=None, outfile=None):
     # fasta format), followed by the hit sequence on the next line    
     with open(outfile, "w") as f:
         for i, s in zip(ids, sequences):
-            f.write('> '+i+'\n')
-            f.write(s+'\n')
+            if max_blast > ids.index(i):
+                f.write('> '+i+'\n')
+                f.write(s+'\n')
+            else:
+                break
     
     print('\tDone: writing to '+outfile)
 
-def Clustal_alignment(xmlfile=None, fastafile=None, alnfile=None):
+def Clustal_alignment(xmlfile=None, fastafile=None, alnfile=None,blastmax=None):
     
     if fastafile is None:
         fastafile = xmlfile.replace('.xml','.fasta')
-    xml2fasta(infile=xmlfile, outfile=fastafile)
+    xml2fasta(infile=xmlfile, outfile=fastafile,max_blast=blastmax)
     
     # Run the command line version of clustal using the sequences.fasta
     # file and output to a clustal format alignment file
     print('\nAligning '+fastafile+' with clustal...')
-    
-    cmd = ClustalwCommandline(clustalo.exe, 
+    clustalo=r'C:\Users\jcabb.DESKTOP-C8IJU3M\Desktop\clustal-omega-1.2.2-win64\clustalo.exe'
+    cmd = ClustalwCommandline(clustalo, 
                               infile=fastafile, 
                               outfile=alnfile)
     cmd()
@@ -226,11 +229,12 @@ def Plot_consensus(x,alnfile=None, plotfile=None):
     f.write('Frequency: '+str(con_freq)+'\n')
     f.write("Sequence: "+str(con_seq)+'\n')
 
-def Blast_a_Bunch(hits=None, alnfile=None, itter=5):
-    for i in range(itter):
-        alnf = str(x)+'_align.aln'
-        Run_blast(infile='input.fasta',outfile='BLAST'+str(hits)+'.xml',max_hits=x)
-        xml2fasta(infile='BLAST'+str(x)+'.xml',outfile='Blast_'+str(x)+'.fasta')
-        Clustal_alignment(fastafile='Blast_'+str(x)+'.fasta',alnfile=alnfile)
-        Plot_consensus(x,alnfile=alnfile,plotfile='total_graphs.png')
-        x = x+100
+def multi_blast(infile=None,outfile=None,maxblast=100
+                ,rounds=5,reduce=10):
+    Run_blast(infile=infile,outfile=outfile,max_hits=maxblast)
+    for x in range(rounds):
+        Clustal_alignment(xmlfile=outfile,fastafile=str(maxblast)+'_hits.fasta',
+                            alnfile=str(maxblast)+'_align.aln',blastmax=maxblast)
+        Plot_consensus(maxblast,alnfile=str(maxblast)+'_align.aln',
+                        plotfile=str(maxblast)+'_cons.png')
+        maxblast = maxblast-reduce
